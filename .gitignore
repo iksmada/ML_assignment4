@@ -1,0 +1,4 @@
+venv/
+.idea/
+*.npy
+MO444_dogs/
