@@ -98,12 +98,12 @@ for filename in listdir(VAL):
         val_classes.append(int(filename.split("_")[0]))
 
 if SIZE > 0:
-    x_train, x_test, y_train, y_test = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE)
+    x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE)
 else:
     x_train = train_image_path
     y_train = train_classes
-    x_test = val_image_path
-    y_test = val_classes
+    x_val = val_image_path
+    y_val = val_classes
 
 images = []
 for path in x_train:
@@ -112,8 +112,25 @@ for path in x_train:
     img = centered_crop(img, 299, 299)
     images.append(img)
 
+x_train = images
+
+images = []
+for path in x_val:
+    img = cv2.imread(path)
+    img = resize(img, 299)
+    img = centered_crop(img, 299, 299)
+    images.append(img)
+
+x_val = images
+
 model = keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=83)
 
-# model.fit()
+# default batch size is 32, if we use number of images/32 epochs we run all images
+model.fit(x_train, y_train, epochs=len(images)//32, verbose=2, validation_data=(x_val, y_val))
+
+predictions = model.predict_classes(x_val)
+
+errors = np.where(predictions != y_val)[0]
+print("No of errors = {}/{}".format(len(errors), len(x_train)))
 
 print("--- %s seconds ---" % (time() - start_time))
