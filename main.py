@@ -9,7 +9,9 @@ from time import time
 import numpy as np
 import cv2
 
-from sklearn import  model_selection
+from sklearn import model_selection
+import tensorflow as tf
+import keras
 
 from joblib import Parallel, delayed
 import multiprocessing
@@ -110,5 +112,8 @@ for path in x_train:
     img = centered_crop(img, 299, 299)
     images.append(img)
 
+model = keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=83)
+
+# model.fit()
 
 print("--- %s seconds ---" % (time() - start_time))
