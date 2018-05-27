@@ -12,6 +12,7 @@ import cv2
 from sklearn import model_selection
 import tensorflow as tf
 import keras
+import pydot
 
 from joblib import Parallel, delayed
 import multiprocessing
@@ -84,11 +85,12 @@ for filename in listdir(TRAIN):
     if filename.endswith(".jpg"):
         train_image_path.append(TRAIN + '/' + filename)
         train_classes.append(int(filename.split("_")[0]))
-
+"""
 test_image_path = []
 for filename in listdir(TEST):
     if filename.endswith(".jpg"):
         test_image_path.append(TEST + '/' + filename)
+        """
 
 val_image_path = []
 val_classes = []
@@ -106,7 +108,7 @@ else:
     y_val = val_classes
 
 images = []
-for path in x_train:
+for path in x_train[:32]:
     img = cv2.imread(path)
     img = resize(img, 299)
     img = centered_crop(img, 299, 299)
@@ -115,7 +117,7 @@ for path in x_train:
 x_train = images
 
 images = []
-for path in x_val:
+for path in x_val[:32]:
     img = cv2.imread(path)
     img = resize(img, 299)
     img = centered_crop(img, 299, 299)
@@ -123,10 +125,17 @@ for path in x_val:
 
 x_val = images
 
-model = keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=83)
+model_orig = keras.applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
+keras.utils.vis_utils.plot_model(model_orig, to_file="inceptionv3.png")
+new_layer = keras.layers.Dense(83, activation='softmax', name='my_dense')
+inp = model_orig.input
+out = new_layer(model_orig.output)
+model = keras.models.Model(inp, out)
+keras.utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
 
 # default batch size is 32, if we use number of images/32 epochs we run all images
-model.fit(x_train, y_train, epochs=len(images)//32, verbose=2, validation_data=(x_val, y_val))
+model.compile(optimizer='rmsprop', loss="categorical_crossentropy")
+model.fit(x_train, y_train, epochs=len(x_train)//32, verbose=2, validation_data=(x_val, y_val))
 
 predictions = model.predict_classes(x_val)
 
