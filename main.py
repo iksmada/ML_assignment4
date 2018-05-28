@@ -11,7 +11,7 @@ import cv2
 
 from sklearn import model_selection
 import tensorflow as tf
-import keras
+from keras import applications, utils, layers, models
 import pydot
 
 from joblib import Parallel, delayed
@@ -85,12 +85,12 @@ for filename in listdir(TRAIN):
     if filename.endswith(".jpg"):
         train_image_path.append(TRAIN + '/' + filename)
         train_classes.append(int(filename.split("_")[0]))
-"""
+
 test_image_path = []
 for filename in listdir(TEST):
     if filename.endswith(".jpg"):
         test_image_path.append(TEST + '/' + filename)
-        """
+
 
 val_image_path = []
 val_classes = []
@@ -100,7 +100,7 @@ for filename in listdir(VAL):
         val_classes.append(int(filename.split("_")[0]))
 
 if SIZE > 0:
-    x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE)
+    x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE)
 else:
     x_train = train_image_path
     y_train = train_classes
@@ -108,38 +108,42 @@ else:
     y_val = val_classes
 
 images = []
-for path in x_train[:32]:
+for path in x_train:
     img = cv2.imread(path)
     img = resize(img, 299)
     img = centered_crop(img, 299, 299)
     images.append(img)
 
-x_train = images
+x_train = np.array(images)
+y_train = utils.np_utils.to_categorical(y_train, num_classes=83)
 
 images = []
-for path in x_val[:32]:
+for path in x_val:
     img = cv2.imread(path)
     img = resize(img, 299)
     img = centered_crop(img, 299, 299)
     images.append(img)
 
-x_val = images
+x_val = np.array(images)
+y_val = utils.np_utils.to_categorical(y_val, num_classes=83)
 
-model_orig = keras.applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
-keras.utils.vis_utils.plot_model(model_orig, to_file="inceptionv3.png")
-new_layer = keras.layers.Dense(83, activation='softmax', name='my_dense')
-inp = model_orig.input
-out = new_layer(model_orig.output)
-model = keras.models.Model(inp, out)
-keras.utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
+base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
+utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
+x = base_model.output
+x = layers.GlobalAveragePooling2D()(x)
+# x = Dense(1024, activation='relu')(x)
+predictions = layers.Dense(83, activation='softmax', name='my_dense')(x)
+model = models.Model(inputs=base_model.input, outputs=predictions)
+utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
 
 # default batch size is 32, if we use number of images/32 epochs we run all images
 model.compile(optimizer='rmsprop', loss="categorical_crossentropy")
 model.fit(x_train, y_train, epochs=len(x_train)//32, verbose=2, validation_data=(x_val, y_val))
 
-predictions = model.predict_classes(x_val)
+prob = model.predict(x_val)
+predictions = prob.argmax(axis=-1)
 
-errors = np.where(predictions != y_val)[0]
+errors = np.where(predictions != y_val.argmax(axis=-1))[0]
 print("No of errors = {}/{}".format(len(errors), len(x_train)))
 
 print("--- %s seconds ---" % (time() - start_time))
