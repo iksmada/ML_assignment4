@@ -1,5 +1,5 @@
 import argparse
-from os import listdir, path, makedirs
+from os import listdir, environ, path, makedirs
 import operator
 import csv
 import pickle
@@ -13,9 +13,11 @@ from sklearn import model_selection
 import tensorflow as tf
 from keras import applications, utils, layers, models
 import pydot
+environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from joblib import Parallel, delayed
 import multiprocessing
+
 
 def centered_crop(img, new_height=299, new_width=299):
     width = np.size(img, 1)
@@ -39,22 +41,24 @@ def resize(image, size=299, inter = cv2.INTER_AREA):
 
     if h > w:
         width = size
-    else:
+    elif h < w:
         height = size
 
     # check to see if the width is None
-    if width is None:
+    if height is not None:
         # calculate the ratio of the height and construct the
         # dimensions
         r = height / float(h)
         dim = (int(w * r), height)
 
     # otherwise, the height is None
-    else:
+    elif width is not None:
         # calculate the ratio of the width and construct the
         # dimensions
         r = width / float(w)
         dim = (width, int(h * r))
+    else:
+        dim = (size, size)
 
     # resize the image
     resized = cv2.resize(image, dim, interpolation = inter)
@@ -138,7 +142,7 @@ utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
 
 # default batch size is 32, if we use number of images/32 epochs we run all images
 model.compile(optimizer='rmsprop', loss="categorical_crossentropy")
-model.fit(x_train, y_train, epochs=len(x_train)//32, verbose=2, validation_data=(x_val, y_val))
+model.fit(x_train, y_train, epochs=1, verbose=2)#, validation_data=(x_val, y_val))
 
 prob = model.predict(x_val)
 predictions = prob.argmax(axis=-1)
