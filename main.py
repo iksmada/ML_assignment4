@@ -13,6 +13,7 @@ from sklearn import model_selection
 import tensorflow as tf
 from keras import applications, utils, layers, models
 import pydot
+import h5py
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from joblib import Parallel, delayed
@@ -104,7 +105,7 @@ for filename in listdir(VAL):
         val_classes.append(int(filename.split("_")[0]))
 
 if SIZE > 0:
-    x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE)
+    x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE//2)
 else:
     x_train = train_image_path
     y_train = train_classes
@@ -131,23 +132,30 @@ for path in x_val:
 x_val = np.array(images)
 y_val = utils.np_utils.to_categorical(y_val, num_classes=83)
 
-base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
-utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
-x = base_model.output
-x = layers.GlobalAveragePooling2D()(x)
-# x = Dense(1024, activation='relu')(x)
-predictions = layers.Dense(83, activation='softmax', name='my_dense')(x)
-model = models.Model(inputs=base_model.input, outputs=predictions)
-utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
+model_name = "inceptionv3.h5"
+try:
+    model = models.load_model(model_name)
+except OSError:
+    base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
+    utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
+    x = base_model.output
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(1024, activation='relu')(x)
+    x = layers.Dense(512, activation='relu')(x)
+    predictions = layers.Dense(83, activation='softmax', name='my_dense')(x)
+    model = models.Model(inputs=base_model.input, outputs=predictions)
+    utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
 
-# default batch size is 32, if we use number of images/32 epochs we run all images
-model.compile(optimizer='rmsprop', loss="categorical_crossentropy")
-model.fit(x_train, y_train, epochs=1, verbose=2)#, validation_data=(x_val, y_val))
+    for layer in base_model.layers:
+        layer.trainable = False
+    model.compile(optimizer='rmsprop', loss="categorical_crossentropy")
+model.fit(x_train, y_train, epochs=1 )#, validation_data=(x_val, y_val))
+model.save(model_name)
 
 prob = model.predict(x_val)
 predictions = prob.argmax(axis=-1)
 
 errors = np.where(predictions != y_val.argmax(axis=-1))[0]
-print("No of errors = {}/{}".format(len(errors), len(x_train)))
+print("No of errors = {}/{}".format(len(errors), len(y_val)))
 
 print("--- %s seconds ---" % (time() - start_time))
