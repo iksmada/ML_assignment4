@@ -1,4 +1,4 @@
 venv/
 .idea/
 *.npy
-MO444_dogs/
+MO444_dogs*/

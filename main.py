@@ -8,10 +8,12 @@ from time import time
 
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 from sklearn import model_selection
+from skimage import img_as_float
 import tensorflow as tf
-from keras import applications, utils, layers, models
+from keras import applications, utils, layers, models, losses, callbacks
 import pydot
 import h5py
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -70,6 +72,8 @@ def resize(image, size=299, inter = cv2.INTER_AREA):
 start_time = time()
 parser = argparse.ArgumentParser(description='Dog breed classifier')
 parser.add_argument('-s', '--size', type=int, help='Train Size to use', default=-1)
+parser.add_argument('-n', '--num-classes', type=int, help='Number of classes to train with',
+                    default=83)
 parser.add_argument('-i', '--input-train', type=str, help='Path to files containing the train dataset',
                     default='MO444_dogs/train')
 parser.add_argument('-t', '--input-test', type=str, help='Path of files containing the test dataset',
@@ -83,13 +87,16 @@ SIZE = args["size"]
 TRAIN = args["input_train"]
 TEST = args["input_test"]
 VAL = args["input_val"]
+NUM_CLASSES = args["num_classes"]
 
 train_image_path = []
 train_classes = []
 for filename in listdir(TRAIN):
     if filename.endswith(".jpg"):
-        train_image_path.append(TRAIN + '/' + filename)
-        train_classes.append(int(filename.split("_")[0]))
+        clazz = int(filename.split("_")[0])
+        if clazz < NUM_CLASSES:
+            train_image_path.append(TRAIN + '/' + filename)
+            train_classes.append(clazz)
 
 test_image_path = []
 for filename in listdir(TEST):
@@ -101,10 +108,12 @@ val_image_path = []
 val_classes = []
 for filename in listdir(VAL):
     if filename.endswith(".jpg"):
-        val_image_path.append(VAL + '/' + filename)
-        val_classes.append(int(filename.split("_")[0]))
+        clazz = int(filename.split("_")[0])
+        if clazz < NUM_CLASSES:
+            val_image_path.append(VAL + '/' + filename)
+            val_classes.append(clazz)
 
-if SIZE > 0:
+if SIZE > 0 and NUM_CLASSES == 83:
     x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE//2)
 else:
     x_train = train_image_path
@@ -120,7 +129,7 @@ for path in x_train:
     images.append(img)
 
 x_train = np.array(images)
-y_train = utils.np_utils.to_categorical(y_train, num_classes=83)
+y_train = utils.np_utils.to_categorical(y_train, num_classes=NUM_CLASSES)
 
 images = []
 for path in x_val:
@@ -130,11 +139,13 @@ for path in x_val:
     images.append(img)
 
 x_val = np.array(images)
-y_val = utils.np_utils.to_categorical(y_val, num_classes=83)
+y_val_flat = y_val
+y_val = utils.np_utils.to_categorical(y_val, num_classes=NUM_CLASSES)
 
-model_name = "inceptionv3.h5"
+model_name = "inceptionv3-3.h5"
 try:
     model = models.load_model(model_name)
+    print("Loaded: " + model_name)
 except OSError:
     base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
     utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
@@ -142,20 +153,46 @@ except OSError:
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(1024, activation='relu')(x)
     x = layers.Dense(512, activation='relu')(x)
-    predictions = layers.Dense(83, activation='softmax', name='my_dense')(x)
+    predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
     model = models.Model(inputs=base_model.input, outputs=predictions)
     utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
 
     for layer in base_model.layers:
         layer.trainable = False
-    model.compile(optimizer='rmsprop', loss="categorical_crossentropy")
-model.fit(x_train, y_train, epochs=1 )#, validation_data=(x_val, y_val))
+    model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
+earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=1, mode='auto')
+history = model.fit(x_train, y_train, epochs=20, verbose=2, validation_data=(x_val, y_val),
+                    callbacks=[earlyStopping])
 model.save(model_name)
 
-prob = model.predict(x_val)
-predictions = prob.argmax(axis=-1)
+# list all data in history
+print(history.history.keys())
+# summarize history for accuracy
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+plt.savefig()
+# summarize history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
-errors = np.where(predictions != y_val.argmax(axis=-1))[0]
-print("No of errors = {}/{}".format(len(errors), len(y_val)))
+#score = model.evaluate(x_val, y_val, verbose=0)
+#print('Test loss:', score[0])
+#print('Test accuracy:', score[1])
+
+prob = model.predict(x_val, batch_size=1, verbose=0)
+
+Y_pred = np.argmax(prob, axis=1)
+accuracy = (len(y_val_flat) - np.count_nonzero(Y_pred - y_val_flat) + 0.0)/len(y_val_flat)
+print(accuracy)
 
 print("--- %s seconds ---" % (time() - start_time))
