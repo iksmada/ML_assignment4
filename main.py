@@ -74,6 +74,8 @@ parser = argparse.ArgumentParser(description='Dog breed classifier')
 parser.add_argument('-s', '--size', type=int, help='Train Size to use', default=-1)
 parser.add_argument('-n', '--num-classes', type=int, help='Number of classes to train with',
                     default=83)
+parser.add_argument('-e', '--epochs', type=int, help='Number of epochs',
+                    default=20)
 parser.add_argument('-i', '--input-train', type=str, help='Path to files containing the train dataset',
                     default='MO444_dogs/train')
 parser.add_argument('-t', '--input-test', type=str, help='Path of files containing the test dataset',
@@ -88,6 +90,7 @@ TRAIN = args["input_train"]
 TEST = args["input_test"]
 VAL = args["input_val"]
 NUM_CLASSES = args["num_classes"]
+EPOCHS = args["epochs"]
 
 train_image_path = []
 train_classes = []
@@ -142,9 +145,9 @@ x_val = np.array(images)
 y_val_flat = y_val
 y_val = utils.np_utils.to_categorical(y_val, num_classes=NUM_CLASSES)
 
-model_name = "inceptionv3-3.h5"
+model_name = "inceptionv3-3"
 try:
-    model = models.load_model(model_name)
+    model = models.load_model(model_name + ".h5")
     print("Loaded: " + model_name)
 except OSError:
     base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
@@ -161,9 +164,9 @@ except OSError:
         layer.trainable = False
     model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
 earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=1, mode='auto')
-history = model.fit(x_train, y_train, epochs=20, verbose=2, validation_data=(x_val, y_val),
+history = model.fit(x_train, y_train, epochs=EPOCHS, verbose=2, validation_data=(x_val, y_val),
                     callbacks=[earlyStopping])
-model.save(model_name)
+model.save(model_name + ".h5")
 
 # list all data in history
 print(history.history.keys())
@@ -175,7 +178,8 @@ plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
-plt.savefig()
+makedirs("plots", exist_ok=True)
+plt.savefig("plots/" + model_name + "-acc.png")
 # summarize history for loss
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
@@ -184,6 +188,7 @@ plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
+plt.savefig("plots/" + model_name + "-loss.png")
 
 #score = model.evaluate(x_val, y_val, verbose=0)
 #print('Test loss:', score[0])
