@@ -119,7 +119,7 @@ for filename in listdir(VAL):
             val_image_path.append(VAL + '/' + filename)
             val_classes.append(clazz)
 
-if 2*len(train_classes)//3 > SIZE > 83 == NUM_CLASSES and SIZE >= NUM_CLASSES * 100:
+if 2*len(train_classes)//3 > SIZE > 83 == NUM_CLASSES:
     x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE//2)
 elif 83 < SIZE < 2*len(train_classes)//3:
     sss = model_selection.StratifiedShuffleSplit(n_splits=1, test_size=SIZE//2, train_size=SIZE)
@@ -140,9 +140,9 @@ for path in x_train:
     img = cv2.imread(path)
     img = resize(img, 299)
     img = centered_crop(img, 299, 299)
-    images.append(img)
+    images.append(img_as_float(img))
 
-x_train = np.array(images)
+x_train = applications.inception_v3.preprocess_input(np.array(images))
 y_train = utils.np_utils.to_categorical(y_train, num_classes=NUM_CLASSES)
 
 images = []
@@ -150,9 +150,9 @@ for path in x_val:
     img = cv2.imread(path)
     img = resize(img, 299)
     img = centered_crop(img, 299, 299)
-    images.append(img)
+    images.append(img_as_float(img))
 
-x_val = np.array(images)
+x_val = applications.inception_v3.preprocess_input(np.array(images))
 y_val_flat = y_val
 y_val = utils.np_utils.to_categorical(y_val, num_classes=NUM_CLASSES)
 
@@ -167,10 +167,10 @@ except OSError:
     x = layers.GlobalAveragePooling2D()(x)
     if DENSE >= 3:
         x = layers.Dense(1024, activation='relu')(x)
-        x = layers.Dropout(0.5)(x)
+        x = layers.Dropout(0.2)(x)
     if DENSE >= 2:
         x = layers.Dense(512, activation='relu')(x)
-        x = layers.Dropout(0.5)(x)
+        x = layers.Dropout(0.2)(x)
     predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
     model = models.Model(inputs=base_model.input, outputs=predictions)
     utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
@@ -178,7 +178,7 @@ except OSError:
     for layer in base_model.layers:
         layer.trainable = False
     model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
-earlyStopping = callbacks.EarlyStopping(monitor='loss', min_delta=0, patience=3, mode='auto')
+earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=3, mode='auto')
 history = model.fit(x_train, y_train, epochs=EPOCHS, verbose=2, validation_data=(x_val, y_val),
                     callbacks=[earlyStopping])
 model.save(model_name + ".h5")
