@@ -116,8 +116,16 @@ for filename in listdir(VAL):
             val_image_path.append(VAL + '/' + filename)
             val_classes.append(clazz)
 
-if SIZE > 0 and NUM_CLASSES == 83:
+if 2*len(train_classes)//3 > SIZE > 83 == NUM_CLASSES:
     x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE//2)
+elif 83 < SIZE < 2*len(train_classes)//3:
+    sss = model_selection.StratifiedShuffleSplit(n_splits=1, test_size=SIZE//2, train_size=SIZE)
+    for train_index, test_index in sss.split(train_image_path, train_classes):
+        train_image_path = np.array(train_image_path)
+        train_classes = np.array(train_classes)
+        x_train, x_val = train_image_path[train_index], train_image_path[test_index]
+        y_train, y_val = train_classes[train_index], train_classes[test_index]
+
 else:
     x_train = train_image_path
     y_train = train_classes
@@ -145,7 +153,7 @@ x_val = np.array(images)
 y_val_flat = y_val
 y_val = utils.np_utils.to_categorical(y_val, num_classes=NUM_CLASSES)
 
-model_name = "inceptionv3-3"
+model_name = "inceptionv3-" + str(NUM_CLASSES) + "-" + str(SIZE)  # + "-"
 try:
     model = models.load_model(model_name + ".h5")
     print("Loaded: " + model_name)
@@ -163,7 +171,7 @@ except OSError:
     for layer in base_model.layers:
         layer.trainable = False
     model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
-earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=1, mode='auto')
+earlyStopping = callbacks.EarlyStopping(monitor='loss', min_delta=0, patience=2, mode='auto')
 history = model.fit(x_train, y_train, epochs=EPOCHS, verbose=2, validation_data=(x_val, y_val),
                     callbacks=[earlyStopping])
 model.save(model_name + ".h5")
