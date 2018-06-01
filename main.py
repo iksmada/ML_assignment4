@@ -76,6 +76,8 @@ parser.add_argument('-n', '--num-classes', type=int, help='Number of classes to 
                     default=83)
 parser.add_argument('-e', '--epochs', type=int, help='Number of epochs',
                     default=20)
+parser.add_argument('-d', '--dense', type=int, help='Number of dense layers',
+                    default=3)
 parser.add_argument('-i', '--input-train', type=str, help='Path to files containing the train dataset',
                     default='MO444_dogs/train')
 parser.add_argument('-t', '--input-test', type=str, help='Path of files containing the test dataset',
@@ -91,6 +93,7 @@ TEST = args["input_test"]
 VAL = args["input_val"]
 NUM_CLASSES = args["num_classes"]
 EPOCHS = args["epochs"]
+DENSE = args["dense"]
 
 train_image_path = []
 train_classes = []
@@ -153,7 +156,7 @@ x_val = np.array(images)
 y_val_flat = y_val
 y_val = utils.np_utils.to_categorical(y_val, num_classes=NUM_CLASSES)
 
-model_name = "inceptionv3-" + str(NUM_CLASSES) + "-" + str(SIZE)  # + "-"
+model_name = "inceptionv3-" + str(DENSE) + "-" + str(NUM_CLASSES) + "-" + str(SIZE)  # + "-"
 try:
     model = models.load_model(model_name + ".h5")
     print("Loaded: " + model_name)
@@ -162,8 +165,12 @@ except OSError:
     utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
     x = base_model.output
     x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dense(1024, activation='relu')(x)
-    x = layers.Dense(512, activation='relu')(x)
+    if DENSE >= 3:
+        x = layers.Dense(1024, activation='relu')(x)
+        x = layers.Dropout(0.5)(x)
+    if DENSE >= 2:
+        x = layers.Dense(512, activation='relu')(x)
+        x = layers.Dropout(0.5)(x)
     predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
     model = models.Model(inputs=base_model.input, outputs=predictions)
     utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
