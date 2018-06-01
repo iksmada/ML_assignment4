@@ -116,7 +116,7 @@ for filename in listdir(VAL):
             val_image_path.append(VAL + '/' + filename)
             val_classes.append(clazz)
 
-if 2*len(train_classes)//3 > SIZE > 83 == NUM_CLASSES:
+if 2*len(train_classes)//3 > SIZE > 83 == NUM_CLASSES and SIZE >= NUM_CLASSES * 100:
     x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE//2)
 elif 83 < SIZE < 2*len(train_classes)//3:
     sss = model_selection.StratifiedShuffleSplit(n_splits=1, test_size=SIZE//2, train_size=SIZE)
@@ -171,7 +171,7 @@ except OSError:
     for layer in base_model.layers:
         layer.trainable = False
     model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
-earlyStopping = callbacks.EarlyStopping(monitor='loss', min_delta=0, patience=2, mode='auto')
+earlyStopping = callbacks.EarlyStopping(monitor='loss', min_delta=0, patience=3, mode='auto')
 history = model.fit(x_train, y_train, epochs=EPOCHS, verbose=2, validation_data=(x_val, y_val),
                     callbacks=[earlyStopping])
 model.save(model_name + ".h5")
@@ -206,6 +206,6 @@ prob = model.predict(x_val, batch_size=1, verbose=0)
 
 Y_pred = np.argmax(prob, axis=1)
 accuracy = (len(y_val_flat) - np.count_nonzero(Y_pred - y_val_flat) + 0.0)/len(y_val_flat)
-print("Accuracy on validation set of %d samples: %d" % (len(x_val), accuracy))
+print("Accuracy on validation set of %d samples: %f" % (len(x_val), accuracy))
 
 print("--- %s seconds ---" % (time() - start_time))
