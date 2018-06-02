@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from sklearn import model_selection
 from skimage import img_as_float
 import tensorflow as tf
-from keras import applications, utils, layers, models, losses, callbacks
+from keras import applications, utils, layers, models, callbacks, preprocessing
 import pydot
 import h5py
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -69,6 +69,7 @@ def resize(image, size=299, inter = cv2.INTER_AREA):
     # return the resized image
     return resized
 
+
 start_time = time()
 parser = argparse.ArgumentParser(description='Dog breed classifier')
 parser.add_argument('-s', '--size', type=int, help='Train Size to use', default=-1)
@@ -104,12 +105,6 @@ for filename in listdir(TRAIN):
             train_image_path.append(TRAIN + '/' + filename)
             train_classes.append(clazz)
 
-test_image_path = []
-for filename in listdir(TEST):
-    if filename.endswith(".jpg"):
-        test_image_path.append(TEST + '/' + filename)
-
-
 val_image_path = []
 val_classes = []
 for filename in listdir(VAL):
@@ -119,42 +114,35 @@ for filename in listdir(VAL):
             val_image_path.append(VAL + '/' + filename)
             val_classes.append(clazz)
 
-if 2*len(train_classes)//3 > SIZE > 83 == NUM_CLASSES:
-    x_train, x_val, y_train, y_val = model_selection.train_test_split(train_image_path, train_classes, train_size=SIZE, test_size=SIZE//2)
-elif 83 < SIZE < 2*len(train_classes)//3:
-    sss = model_selection.StratifiedShuffleSplit(n_splits=1, test_size=SIZE//2, train_size=SIZE)
-    for train_index, test_index in sss.split(train_image_path, train_classes):
-        train_image_path = np.array(train_image_path)
-        train_classes = np.array(train_classes)
-        x_train, x_val = train_image_path[train_index], train_image_path[test_index]
-        y_train, y_val = train_classes[train_index], train_classes[test_index]
+batch_size = 16
+train_datagen = preprocessing.image.ImageDataGenerator(
+    rescale=1./255,
+    shear_range=0.2,
+    # zoom_range=0.2,
+    horizontal_flip=True,
+    preprocessing_function=applications.inception_v3.preprocess_input
+)
 
-else:
-    x_train = train_image_path
-    y_train = train_classes
-    x_val = val_image_path
-    y_val = val_classes
+train_generator = train_datagen.flow_from_directory(
+    'MO444_dogs2/train',  # this is the target directory
+    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
+    target_size=(299, 299),  # all images will be resized to 150x150
+    batch_size=batch_size,
+    class_mode='categorical'
+)
 
-images = []
-for path in x_train:
-    img = cv2.imread(path)
-    img = resize(img, 299)
-    img = centered_crop(img, 299, 299)
-    images.append(img_as_float(img))
+test_datagen = preprocessing.image.ImageDataGenerator(
+    rescale=1./255,
+    preprocessing_function=applications.inception_v3.preprocess_input
+)
 
-x_train = applications.inception_v3.preprocess_input(np.array(images))
-y_train = utils.np_utils.to_categorical(y_train, num_classes=NUM_CLASSES)
-
-images = []
-for path in x_val:
-    img = cv2.imread(path)
-    img = resize(img, 299)
-    img = centered_crop(img, 299, 299)
-    images.append(img_as_float(img))
-
-x_val = applications.inception_v3.preprocess_input(np.array(images))
-y_val_flat = y_val
-y_val = utils.np_utils.to_categorical(y_val, num_classes=NUM_CLASSES)
+validation_generator = test_datagen.flow_from_directory(
+    'MO444_dogs2/val',
+    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
+    target_size=(299, 299),
+    batch_size=batch_size,
+    class_mode='categorical'
+)
 
 model_name = "inceptionv3-" + str(DENSE) + "-" + str(NUM_CLASSES) + "-" + str(SIZE)  # + "-"
 try:
@@ -162,7 +150,7 @@ try:
     print("Loaded: " + model_name)
 except OSError:
     base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
-    utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
+    # utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
     x = base_model.output
     x = layers.GlobalAveragePooling2D()(x)
     if DENSE >= 3:
@@ -173,14 +161,26 @@ except OSError:
         x = layers.Dropout(0.2)(x)
     predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
     model = models.Model(inputs=base_model.input, outputs=predictions)
-    utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
+    # utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
 
     for layer in base_model.layers:
         layer.trainable = False
     model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
 earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=3, mode='auto')
-history = model.fit(x_train, y_train, epochs=EPOCHS, verbose=2, validation_data=(x_val, y_val),
-                    callbacks=[earlyStopping])
+if SIZE > NUM_CLASSES:
+    train_size = SIZE
+    val_size = SIZE//2
+else:
+    train_size = len(train_classes)
+    val_size = len(val_classes)
+history = model.fit_generator(
+    train_generator,
+    steps_per_epoch=train_size // batch_size,
+    epochs=EPOCHS,
+    validation_data=validation_generator,
+    validation_steps=val_size // batch_size,
+    verbose=2,
+    callbacks=[earlyStopping])
 model.save(model_name + ".h5")
 
 # list all data in history
@@ -205,14 +205,25 @@ plt.legend(['train', 'test'], loc='upper left')
 plt.savefig("plots/" + model_name + "-loss.png")
 plt.show()
 
+images =[]
+for path in val_image_path:
+    img = cv2.imread(path)
+    img = resize(img, 299)
+    img = centered_crop(img, 299, 299)
+    images.append(img_as_float(img))
+
+x_val = applications.inception_v3.preprocess_input(np.array(images))
+
+
 #score = model.evaluate(x_val, y_val, verbose=0)
 #print('Test loss:', score[0])
 #print('Test accuracy:', score[1])
 
+
 prob = model.predict(x_val, batch_size=1, verbose=0)
 
 Y_pred = np.argmax(prob, axis=1)
-accuracy = (len(y_val_flat) - np.count_nonzero(Y_pred - y_val_flat) + 0.0)/len(y_val_flat)
+accuracy = (len(val_classes) - np.count_nonzero(Y_pred - val_classes) + 0.0)/len(val_classes)
 print("Accuracy on validation set of %d samples: %f" % (len(x_val), accuracy))
 
 print("--- %s seconds ---" % (time() - start_time))
