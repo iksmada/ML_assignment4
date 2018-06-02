@@ -101,21 +101,21 @@ AUG = args["augmentation"]
 
 train_image_path = []
 train_classes = []
-for filename in listdir(TRAIN):
-    if filename.endswith(".jpg"):
-        clazz = int(filename.split("_")[0])
-        if clazz < NUM_CLASSES:
-            train_image_path.append(TRAIN + '/' + filename)
-            train_classes.append(clazz)
+for clazz in listdir(TRAIN):
+    if path.isdir(TRAIN + "/" + clazz) and int(clazz) < NUM_CLASSES:
+        for filename in listdir(TRAIN + "/" + clazz):
+            if filename.endswith(".jpg"):
+                train_image_path.append(TRAIN + '/' + filename)
+                train_classes.append(int(clazz))
 
 val_image_path = []
 val_classes = []
-for filename in listdir(VAL):
-    if filename.endswith(".jpg"):
-        clazz = int(filename.split("_")[0])
-        if clazz < NUM_CLASSES:
-            val_image_path.append(VAL + '/' + filename)
-            val_classes.append(clazz)
+for clazz in listdir(VAL):
+    if path.isdir(VAL + "/" + clazz) and int(clazz) < NUM_CLASSES:
+        for filename in listdir(VAL + "/" + clazz):
+            if filename.endswith(".jpg"):
+                val_image_path.append(VAL + '/' + filename)
+                val_classes.append(int(clazz))
 
 batch_size = 16
 train_datagen = preprocessing.image.ImageDataGenerator(
