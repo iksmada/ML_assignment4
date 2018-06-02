@@ -82,11 +82,11 @@ parser.add_argument('-d', '--dense', type=int, help='Number of dense layers',
 parser.add_argument('-a', '--augmentation', type=int, help='Images generated using augmentation per image',
                     default=1)
 parser.add_argument('-i', '--input-train', type=str, help='Path to files containing the train dataset',
-                    default='MO444_dogs/train')
+                    default='MO444_dogs2/train')
 parser.add_argument('-t', '--input-test', type=str, help='Path of files containing the test dataset',
-                    default='MO444_dogs/test')
+                    default='MO444_dogs2/test')
 parser.add_argument('-v', '--input-val', type=str, help='Path of files containing the validation dataset',
-                    default='MO444_dogs/val')
+                    default='MO444_dogs2/val')
 
 args = vars(parser.parse_args())
 print(args)
@@ -127,7 +127,7 @@ train_datagen = preprocessing.image.ImageDataGenerator(
 )
 
 train_generator = train_datagen.flow_from_directory(
-    'MO444_dogs2/train',  # this is the target directory
+    TRAIN,  # this is the target directory
     classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),  # all images will be resized to 150x150
     batch_size=batch_size,
@@ -140,7 +140,7 @@ test_datagen = preprocessing.image.ImageDataGenerator(
 )
 
 validation_generator = test_datagen.flow_from_directory(
-    'MO444_dogs2/val',
+    VAL,
     classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),
     batch_size=batch_size,
@@ -181,7 +181,7 @@ history = model.fit_generator(
     epochs=EPOCHS,
     validation_data=validation_generator,
     validation_steps=val_size // batch_size,
-    verbose=2,
+    verbose=1,
     callbacks=[earlyStopping])
 model.save(model_name + ".h5")
 
