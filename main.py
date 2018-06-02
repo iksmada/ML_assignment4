@@ -79,6 +79,8 @@ parser.add_argument('-e', '--epochs', type=int, help='Number of epochs',
                     default=20)
 parser.add_argument('-d', '--dense', type=int, help='Number of dense layers',
                     default=3)
+parser.add_argument('-a', '--augmentation', type=int, help='Images generated using augmentation per image',
+                    default=1)
 parser.add_argument('-i', '--input-train', type=str, help='Path to files containing the train dataset',
                     default='MO444_dogs/train')
 parser.add_argument('-t', '--input-test', type=str, help='Path of files containing the test dataset',
@@ -95,6 +97,7 @@ VAL = args["input_val"]
 NUM_CLASSES = args["num_classes"]
 EPOCHS = args["epochs"]
 DENSE = args["dense"]
+AUG = args["augmentation"]
 
 train_image_path = []
 train_classes = []
@@ -144,13 +147,15 @@ validation_generator = test_datagen.flow_from_directory(
     class_mode='categorical'
 )
 
-model_name = "inceptionv3-" + str(DENSE) + "-" + str(NUM_CLASSES) + "-" + str(SIZE)  # + "-"
+model_name = "inceptionv3-" + str(DENSE) + "-" + str(NUM_CLASSES) + "-" + str(SIZE) + "-" + str(AUG)
 try:
     model = models.load_model(model_name + ".h5")
     print("Loaded: " + model_name)
 except OSError:
     base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
     # utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
+    for layer in base_model.layers:
+        layer.trainable = False
     x = base_model.output
     x = layers.GlobalAveragePooling2D()(x)
     if DENSE >= 3:
@@ -162,9 +167,6 @@ except OSError:
     predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
     model = models.Model(inputs=base_model.input, outputs=predictions)
     # utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
-
-    for layer in base_model.layers:
-        layer.trainable = False
     model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
 earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=3, mode='auto')
 if SIZE > NUM_CLASSES:
@@ -175,7 +177,7 @@ else:
     val_size = len(val_classes)
 history = model.fit_generator(
     train_generator,
-    steps_per_epoch=train_size // batch_size,
+    steps_per_epoch=(train_size // batch_size) * AUG,
     epochs=EPOCHS,
     validation_data=validation_generator,
     validation_steps=val_size // batch_size,
