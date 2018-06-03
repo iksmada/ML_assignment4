@@ -105,7 +105,7 @@ for clazz in listdir(TRAIN):
     if path.isdir(TRAIN + "/" + clazz) and int(clazz) < NUM_CLASSES:
         for filename in listdir(TRAIN + "/" + clazz):
             if filename.endswith(".jpg"):
-                train_image_path.append(TRAIN + '/' + filename)
+                train_image_path.append(TRAIN + "/" + clazz + '/' + filename)
                 train_classes.append(int(clazz))
 
 val_image_path = []
@@ -114,7 +114,7 @@ for clazz in listdir(VAL):
     if path.isdir(VAL + "/" + clazz) and int(clazz) < NUM_CLASSES:
         for filename in listdir(VAL + "/" + clazz):
             if filename.endswith(".jpg"):
-                val_image_path.append(VAL + '/' + filename)
+                val_image_path.append(VAL + "/" + clazz + '/' + filename)
                 val_classes.append(int(clazz))
 
 batch_size = 16
@@ -181,7 +181,7 @@ history = model.fit_generator(
     epochs=EPOCHS,
     validation_data=validation_generator,
     validation_steps=val_size // batch_size,
-    verbose=1,
+    verbose=2,
     callbacks=[earlyStopping])
 model.save(model_name + ".h5")
 
