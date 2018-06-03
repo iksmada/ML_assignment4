@@ -129,35 +129,7 @@ try:
     model = models.load_model(model_name + ".h5")
     print("Loaded: " + model_name)
 except OSError:
-    base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
-    # utils.vis_utils.plot_model(base_model, to_file="inceptionv3.png")
-    for layer in base_model.layers:
-        layer.trainable = False
-    x = base_model.output
-    x = layers.GlobalAveragePooling2D()(x)
-    if DENSE >= 3:
-        x = layers.Dense(1024, activation='relu')(x)
-        x = layers.Dropout(0.2)(x)
-    if DENSE >= 2:
-        x = layers.Dense(512, activation='relu')(x)
-        x = layers.Dropout(0.2)(x)
-    predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
-    model = models.Model(inputs=base_model.input, outputs=predictions)
-    # utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
-    model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
-earlyStopping = callbacks.EarlyStopping(monitor='test_loss', min_delta=0, patience=3, mode='auto')
-
-test_size = len(test_classes)
-
-images =[]
-for path in test_image_path:
-    img = cv2.imread(path)
-    img = resize(img, 299)
-    img = centered_crop(img, 299, 299)
-    images.append(img_as_float(img))
-
-x_test = applications.inception_v3.preprocess_input(np.array(images))
-
+    pass
 
 score = model.evaluate_generator(test_generator, verbose=1, use_multiprocessing=True)
 print('Test loss:', score[0])
@@ -167,6 +139,6 @@ prob = model.predict_generator(test_generator, verbose=1, use_multiprocessing=Tr
 
 Y_pred = np.argmax(prob, axis=1)
 accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
-print("Accuracy on testidation set of %d samples: %f" % (len(x_test), accuracy))
+print("Accuracy on testidation set of %d samples: %f" % (len(test_classes), accuracy))
 
 print("--- %s seconds ---" % (time() - start_time))
