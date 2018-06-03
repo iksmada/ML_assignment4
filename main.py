@@ -215,6 +215,7 @@ test_generator = test_datagen.flow_from_directory(
     classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),
     batch_size=batch_size,
+    shuffle=False,
     class_mode='categorical'
 )
 
@@ -232,7 +233,7 @@ score = model.evaluate_generator(test_generator, verbose=1, use_multiprocessing=
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
-prob = model.predict_generator(test_generator, verbose=1, use_multiprocessing=True)
+prob = model.predict_generator(test_generator, verbose=1, workers=1, steps=len(test_classes))
 
 Y_pred = np.argmax(prob, axis=1)
 accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
