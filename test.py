@@ -119,7 +119,7 @@ test_generator = test_datagen.flow_from_directory(
     TEST,
     classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),
-    batch_size=batch_size,
+    batch_size=1,
     shuffle=False,
     class_mode='categorical'
 )
