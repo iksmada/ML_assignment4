@@ -134,12 +134,11 @@ train_generator = train_datagen.flow_from_directory(
     class_mode='categorical'
 )
 
-test_datagen = preprocessing.image.ImageDataGenerator(
-    rescale=1./255,
+val_datagen = preprocessing.image.ImageDataGenerator(
     preprocessing_function=applications.inception_v3.preprocess_input
 )
 
-validation_generator = test_datagen.flow_from_directory(
+validation_generator = val_datagen.flow_from_directory(
     VAL,
     classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),
@@ -207,25 +206,36 @@ plt.legend(['train', 'test'], loc='upper left')
 plt.savefig("plots/" + model_name + "-loss.png")
 plt.show()
 
-images =[]
-for path in val_image_path:
-    img = cv2.imread(path)
-    img = resize(img, 299)
-    img = centered_crop(img, 299, 299)
-    images.append(img_as_float(img))
+test_datagen = preprocessing.image.ImageDataGenerator(
+    preprocessing_function=applications.inception_v3.preprocess_input
+)
 
-x_val = applications.inception_v3.preprocess_input(np.array(images))
+test_generator = test_datagen.flow_from_directory(
+    TEST,
+    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
+    target_size=(299, 299),
+    batch_size=batch_size,
+    class_mode='categorical'
+)
+
+test_image_path = []
+test_classes = []
+for clazz in listdir(TEST):
+    if path.isdir(TEST + "/" + clazz) and int(clazz) < NUM_CLASSES:
+        for filename in listdir(TEST + "/" + clazz):
+            if filename.endswith(".jpg"):
+                test_image_path.append(TEST + "/" + clazz + '/' + filename)
+                test_classes.append(int(clazz))
 
 
-#score = model.evaluate(x_val, y_val, verbose=0)
-#print('Test loss:', score[0])
-#print('Test accuracy:', score[1])
+score = model.evaluate_generator(test_generator, verbose=1, use_multiprocessing=True)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
 
-
-prob = model.predict(x_val, batch_size=1, verbose=0)
+prob = model.predict_generator(test_generator, verbose=1, use_multiprocessing=True)
 
 Y_pred = np.argmax(prob, axis=1)
-accuracy = (len(val_classes) - np.count_nonzero(Y_pred - val_classes) + 0.0)/len(val_classes)
-print("Accuracy on validation set of %d samples: %f" % (len(x_val), accuracy))
+accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
+print("Accuracy on testidation set of %d samples: %f" % (len(test_classes), accuracy))
 
 print("--- %s seconds ---" % (time() - start_time))
