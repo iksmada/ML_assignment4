@@ -92,25 +92,22 @@ for clazz in listdir(TEST):
 batch_size = 16
 
 test_datagen = preprocessing.image.ImageDataGenerator(
-    rescale=1./255
 )
 
 test_generator = test_datagen.flow_from_directory(
     TEST,
-    classes=["{:02d}".format(x) for x in range(83)],
+    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),
     batch_size=1,
     shuffle=False,
     class_mode='categorical'
 )
+test_generator.num_classes = 83
 
 model_name = "inceptionv3"
 
-try:
-    model = models.load_model(model_name + ".h5")
-    print("Loaded: " + model_name)
-except OSError:
-    pass
+model = models.load_model(model_name + ".h5")
+print("Loaded: " + model_name)
 
 score = model.evaluate_generator(test_generator, verbose=1, steps=len(test_classes), use_multiprocessing=True)
 print('Test loss:', score[0])
