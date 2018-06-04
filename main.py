@@ -99,30 +99,13 @@ EPOCHS = args["epochs"]
 DENSE = args["dense"]
 AUG = args["augmentation"]
 
-train_image_path = []
-train_classes = []
-for clazz in listdir(TRAIN):
-    if path.isdir(TRAIN + "/" + clazz) and int(clazz) < NUM_CLASSES:
-        for filename in listdir(TRAIN + "/" + clazz):
-            if filename.endswith(".jpg"):
-                train_image_path.append(TRAIN + "/" + clazz + '/' + filename)
-                train_classes.append(int(clazz))
-
-val_image_path = []
-val_classes = []
-for clazz in listdir(VAL):
-    if path.isdir(VAL + "/" + clazz) and int(clazz) < NUM_CLASSES:
-        for filename in listdir(VAL + "/" + clazz):
-            if filename.endswith(".jpg"):
-                val_image_path.append(VAL + "/" + clazz + '/' + filename)
-                val_classes.append(int(clazz))
-
 batch_size = 16
 train_datagen = preprocessing.image.ImageDataGenerator(
     rescale=1./255,
     shear_range=0.2,
     # zoom_range=0.2,
     horizontal_flip=True,
+    rotation_range=20,
     preprocessing_function=applications.inception_v3.preprocess_input
 )
 
@@ -131,6 +114,7 @@ train_generator = train_datagen.flow_from_directory(
     classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),  # all images will be resized to 150x150
     batch_size=batch_size,
+    shuffle=True,
     class_mode='categorical'
 )
 
@@ -143,6 +127,7 @@ validation_generator = val_datagen.flow_from_directory(
     classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
     target_size=(299, 299),
     batch_size=batch_size,
+    shuffle=True,
     class_mode='categorical'
 )
 
@@ -172,8 +157,8 @@ if SIZE > NUM_CLASSES:
     train_size = SIZE
     val_size = SIZE//2
 else:
-    train_size = len(train_classes)
-    val_size = len(val_classes)
+    train_size = len(train_generator.filenames)
+    val_size = len(validation_generator.filenames)
 history = model.fit_generator(
     train_generator,
     steps_per_epoch=(train_size // batch_size) * AUG,
@@ -232,6 +217,8 @@ for clazz in listdir(TEST):
 score = model.evaluate_generator(test_generator, verbose=1, use_multiprocessing=True)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
+
+test_generator.class_mode = None
 
 prob = model.predict_generator(test_generator, verbose=1, workers=1, steps=len(test_classes))
 

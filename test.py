@@ -22,54 +22,6 @@ from joblib import Parallel, delayed
 import multiprocessing
 
 
-def centered_crop(img, new_height=299, new_width=299):
-    width = np.size(img, 1)
-    height = np.size(img, 0)
-
-    left = (width - new_width) // 2
-    top = (height - new_height) // 2
-    right = (width + new_width) // 2
-    bottom = (height + new_height) // 2
-    c_img = img[top:bottom, left:right, :]
-    return c_img
-
-
-def resize(image, size=299, inter = cv2.INTER_AREA):
-    # initialize the dimensions of the image to be resized and
-    # grab the image size
-    dim = None
-    width = None
-    height = None
-    (h, w) = image.shape[:2]
-
-    if h > w:
-        width = size
-    elif h < w:
-        height = size
-
-    # check to see if the width is None
-    if height is not None:
-        # calculate the ratio of the height and construct the
-        # dimensions
-        r = height / float(h)
-        dim = (int(w * r), height)
-
-    # otherwise, the height is None
-    elif width is not None:
-        # calculate the ratio of the width and construct the
-        # dimensions
-        r = width / float(w)
-        dim = (width, int(h * r))
-    else:
-        dim = (size, size)
-
-    # resize the image
-    resized = cv2.resize(image, dim, interpolation = inter)
-
-    # return the resized image
-    return resized
-
-
 start_time = time()
 parser = argparse.ArgumentParser(description='Dog breed classifier')
 parser.add_argument('-s', '--size', type=int, help='Train Size to use', default=-1)
@@ -111,8 +63,7 @@ for clazz in listdir(TEST):
 batch_size = 16
 
 test_datagen = preprocessing.image.ImageDataGenerator(
-    rescale=1./255,
-    preprocessing_function=applications.inception_v3.preprocess_input
+    #preprocessing_function=applications.inception_v3.preprocess_input
 )
 
 test_generator = test_datagen.flow_from_directory(
@@ -135,6 +86,8 @@ except OSError:
 score = model.evaluate_generator(test_generator, verbose=1, use_multiprocessing=True)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
+
+test_generator.class_mode = None
 
 prob = model.predict_generator(test_generator, verbose=1, workers=1, steps=len(test_classes))
 
