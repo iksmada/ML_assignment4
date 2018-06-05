@@ -82,7 +82,7 @@ AUG = args["augmentation"]
 
 test_image_path = []
 test_classes = []
-for clazz in listdir(TEST):
+for clazz in np.sort(listdir(TEST)):
     if path.isdir(TEST + "/" + clazz) and int(clazz) < NUM_CLASSES:
         for filename in listdir(TEST + "/" + clazz):
             if filename.endswith(".jpg"):
@@ -92,6 +92,7 @@ for clazz in listdir(TEST):
 batch_size = 16
 
 test_datagen = preprocessing.image.ImageDataGenerator(
+    rescale=1./255
 )
 
 test_generator = test_datagen.flow_from_directory(
@@ -109,15 +110,16 @@ model_name = "inceptionv3"
 model = models.load_model(model_name + ".h5")
 print("Loaded: " + model_name)
 
-score = model.evaluate_generator(test_generator, verbose=1, steps=len(test_classes), use_multiprocessing=True)
+score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_classes), use_multiprocessing=True)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
 test_generator.class_mode = None
 
-prob = model.predict_generator(test_generator, verbose=1, workers=1, steps=len(test_classes), pickle_safe=True)
+prob = model.predict_generator(test_generator, verbose=2, workers=1, steps=len(test_classes))
 
 Y_pred = np.argmax(prob, axis=1)
+print(Y_pred)
 accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
 print("Accuracy on test set of %d samples: %f" % (len(test_classes), accuracy))
 
