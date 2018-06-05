@@ -7,7 +7,7 @@ import re
 from time import time
 
 import numpy as np
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 import tensorflow as tf
 from keras import applications, utils, layers, models, callbacks, preprocessing
@@ -21,13 +21,16 @@ import multiprocessing
 
 start_time = time()
 parser = argparse.ArgumentParser(description='Dog breed classifier')
-parser.add_argument('-s', '--size', type=int, help='Train Size to use', default=-1)
-parser.add_argument('-n', '--num-classes', type=int, help='Number of classes to train with',
+parser.add_argument('-s', '--samples', type=int, help='Train Size to use',
+                    default=-1)
+parser.add_argument('-c', '--classes', type=int, help='Number of classes to train with',
                     default=83)
 parser.add_argument('-e', '--epochs', type=int, help='Number of epochs',
                     default=20)
-parser.add_argument('-d', '--dense', type=int, help='Number of dense layers',
+parser.add_argument('-dl', '--dense', type=int, help='Number of dense layers',
                     default=3)
+parser.add_argument('-do', '--drop', type=float, help='Percentage of drop-out',
+                    default=0.2)
 parser.add_argument('-a', '--augmentation', type=int, help='Images generated using augmentation per image',
                     default=1)
 parser.add_argument('-i', '--input-train', type=str, help='Path to files containing the train dataset',
@@ -39,19 +42,20 @@ parser.add_argument('-v', '--input-val', type=str, help='Path of files containin
 
 args = vars(parser.parse_args())
 print(args)
-SIZE = args["size"]
+SAMPLES = args["samples"]
 TRAIN = args["input_train"]
 TEST = args["input_test"]
 VAL = args["input_val"]
-NUM_CLASSES = args["num_classes"]
+CLASSES = args["classes"]
 EPOCHS = args["epochs"]
 DENSE = args["dense"]
+DROP = args["drop"]
 AUG = args["augmentation"]
 
 test_image_path = []
 test_classes = []
 for clazz in np.sort(listdir(TEST)):
-    if path.isdir(TEST + "/" + clazz) and int(clazz) < NUM_CLASSES:
+    if path.isdir(TEST + "/" + clazz) and int(clazz) < CLASSES:
         for filename in listdir(TEST + "/" + clazz):
             if filename.endswith(".jpg"):
                 test_image_path.append(TEST + "/" + clazz + '/' + filename)
@@ -65,7 +69,7 @@ test_datagen = preprocessing.image.ImageDataGenerator(
 batch_size = 1
 test_generator = test_datagen.flow_from_directory(
     TEST,
-    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
+    classes=["{:02d}".format(x) for x in range(CLASSES)],
     target_size=(299, 299),
     batch_size=batch_size,
     shuffle=False,
@@ -74,7 +78,6 @@ test_generator = test_datagen.flow_from_directory(
 test_generator.num_classes = 83
 
 model_name = "inceptionv3-aug"
-
 model = models.load_model(model_name + ".h5")
 print("Loaded: " + model_name)
 
@@ -86,12 +89,17 @@ test_generator.class_mode = None
 
 prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generator.filenames)//batch_size)
 
-Y_pred = np.argmax(prob, axis=1)
-accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
-print("Accuracy on test set of %d samples: %f" % (len(test_classes), accuracy))
+y_pred = np.argmax(prob, axis=1)
+y_true = np.array(test_classes)
+accuracy = (len(y_true) - np.count_nonzero(y_pred - y_true) + 0.0) / len(y_true)
+print("Accuracy on test set of %d samples: %f" % (len(y_true), accuracy))
 
-cm = confusion_matrix(test_classes, Y_pred)
-cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print(cm)
+
+cmat = confusion_matrix(y_true, y_pred)
+cmat = cmat.astype('float') / cmat.sum(axis=1)[:, np.newaxis]
+np.set_printoptions(precision=2)
+print(cmat)
+acc_per_class = cmat.diagonal()/cmat.sum(axis=1)
+print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
 
 print("--- %s seconds ---" % (time() - start_time))
