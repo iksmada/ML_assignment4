@@ -9,9 +9,8 @@ from time import time
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 
-from sklearn import model_selection
-from skimage import img_as_float
 import tensorflow as tf
 from keras import applications, utils, layers, models, callbacks, preprocessing
 from keras import backend as K
@@ -166,7 +165,7 @@ validation_generator = val_datagen.flow_from_directory(
     class_mode='categorical'
 )
 
-model_name = "inceptionv3-" + str(DENSE) + "-" + str(CLASSES) + "-" + str(SAMPLES) + "-" + str(AUG)
+model_name = "inceptionv32-" + str(DENSE) + "-" + str(CLASSES) + "-" + str(SAMPLES) + "-" + str(AUG)
 try:
     model = models.load_model(model_name + ".h5", custom_objects={"f1": f1})
     print("Loaded: " + model_name)
@@ -270,5 +269,9 @@ prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generat
 Y_pred = np.argmax(prob, axis=1)
 accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
 print("Accuracy on testidation set of %d samples: %f" % (len(test_classes), accuracy))
+
+cm = confusion_matrix(test_classes, Y_pred)
+cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+print(cm)
 
 print("--- %s seconds ---" % (time() - start_time))
