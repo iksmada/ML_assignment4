@@ -266,12 +266,16 @@ test_generator.class_mode = None
 
 prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generator.filenames))
 
-Y_pred = np.argmax(prob, axis=1)
-accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
-print("Accuracy on testidation set of %d samples: %f" % (len(test_classes), accuracy))
+y_pred = np.argmax(prob, axis=1)
+y_true = np.array(test_classes)
+accuracy = (len(y_true) - np.count_nonzero(y_pred - y_true) + 0.0) / len(y_true)
+print("Accuracy on testidation set of %d samples: %f" % (len(y_true), accuracy))
 
-cm = confusion_matrix(test_classes, Y_pred)
-cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print(cm)
+cmat = confusion_matrix(y_true, y_pred)
+cmat = cmat.astype('float') / cmat.sum(axis=1)[:, np.newaxis]
+np.set_printoptions(precision=2)
+print(cmat)
+acc_per_class = cmat.diagonal()/cmat.sum(axis=1)
+print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
 
 print("--- %s seconds ---" % (time() - start_time))
