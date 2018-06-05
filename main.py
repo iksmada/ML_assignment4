@@ -14,6 +14,7 @@ from sklearn import model_selection
 from skimage import img_as_float
 import tensorflow as tf
 from keras import applications, utils, layers, models, callbacks, preprocessing
+from keras import backend as K
 import pydot
 import h5py
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -68,6 +69,37 @@ def resize(image, size=299, inter = cv2.INTER_AREA):
 
     # return the resized image
     return resized
+
+
+def f1(y_true, y_pred):
+    def recall(y_true, y_pred):
+        """Recall metric.
+
+        Only computes a batch-wise average of recall.
+
+        Computes the recall, a metric for multi-label classification of
+        how many relevant items are selected.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + K.epsilon())
+        return recall
+
+    def precision(y_true, y_pred):
+        """Precision metric.
+
+        Only computes a batch-wise average of precision.
+
+        Computes the precision, a metric for multi-label classification of
+        how many selected items are relevant.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
 
 start_time = time()
@@ -133,7 +165,7 @@ validation_generator = val_datagen.flow_from_directory(
 
 model_name = "inceptionv3-" + str(DENSE) + "-" + str(NUM_CLASSES) + "-" + str(SIZE) + "-" + str(AUG)
 try:
-    model = models.load_model(model_name + ".h5")
+    model = models.load_model(model_name + ".h5", custom_objects={"f1": f1})
     print("Loaded: " + model_name)
 except OSError:
     base_model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet')
@@ -151,7 +183,7 @@ except OSError:
     predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
     model = models.Model(inputs=base_model.input, outputs=predictions)
     # utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
-    model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy'])
+    model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy', f1])
 earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=3, mode='auto')
 if SIZE > NUM_CLASSES:
     train_size = SIZE
@@ -174,7 +206,7 @@ print(history.history.keys())
 # summarize history for accuracy
 plt.plot(history.history['acc'])
 plt.plot(history.history['val_acc'])
-plt.title('model accuracy')
+plt.title('Model Accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
@@ -184,11 +216,20 @@ plt.show()
 # summarize history for loss
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
-plt.title('model loss')
+plt.title('Model Loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.savefig("plots/" + model_name + "-loss.png")
+plt.show()
+# summarize history for f1
+plt.plot(history.history['f1'])
+plt.plot(history.history['val_f1'])
+plt.title('Model F1')
+plt.ylabel('F1 score')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.savefig("plots/" + model_name + "-f1.png")
 plt.show()
 
 test_datagen = preprocessing.image.ImageDataGenerator(
@@ -206,7 +247,7 @@ test_generator = test_datagen.flow_from_directory(
 
 test_image_path = []
 test_classes = []
-for clazz in listdir(TEST):
+for clazz in np.sort(listdir(TEST)):
     if path.isdir(TEST + "/" + clazz) and int(clazz) < NUM_CLASSES:
         for filename in listdir(TEST + "/" + clazz):
             if filename.endswith(".jpg"):
@@ -214,13 +255,14 @@ for clazz in listdir(TEST):
                 test_classes.append(int(clazz))
 
 
-score = model.evaluate_generator(test_generator, verbose=1, use_multiprocessing=True)
+score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_generator.filenames))
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
+print('Test accuracy:', score[2])
 
 test_generator.class_mode = None
 
-prob = model.predict_generator(test_generator, verbose=1, workers=1, steps=len(test_classes))
+prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generator.filenames))
 
 Y_pred = np.argmax(prob, axis=1)
 accuracy = (len(test_classes) - np.count_nonzero(Y_pred - test_classes) + 0.0)/len(test_classes)
