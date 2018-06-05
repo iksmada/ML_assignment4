@@ -209,7 +209,7 @@ plt.plot(history.history['val_acc'])
 plt.title('Model Accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'val'], loc='upper left')
 makedirs("plots", exist_ok=True)
 plt.savefig("plots/" + model_name + "-acc.png")
 plt.show()
@@ -219,7 +219,7 @@ plt.plot(history.history['val_loss'])
 plt.title('Model Loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'val'], loc='upper left')
 plt.savefig("plots/" + model_name + "-loss.png")
 plt.show()
 # summarize history for f1
@@ -258,7 +258,7 @@ for clazz in np.sort(listdir(TEST)):
 score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_generator.filenames))
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
-print('Test accuracy:', score[2])
+print('Test F1 score:', score[2])
 
 test_generator.class_mode = None
 
