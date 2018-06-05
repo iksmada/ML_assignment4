@@ -9,7 +9,7 @@ from time import time
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 import tensorflow as tf
 from keras import applications, utils, layers, models, callbacks, preprocessing
@@ -268,8 +268,8 @@ prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generat
 
 y_pred = np.argmax(prob, axis=1)
 y_true = np.array(test_classes)
-accuracy = (len(y_true) - np.count_nonzero(y_pred - y_true) + 0.0) / len(y_true)
-print("Accuracy on testidation set of %d samples: %f" % (len(y_true), accuracy))
+
+print("Accuracy on test set of %d samples: %f" % (len(y_true), accuracy_score(y_true, y_pred)))
 
 cmat = confusion_matrix(y_true, y_pred)
 cmat = cmat.astype('float') / cmat.sum(axis=1)[:, np.newaxis]

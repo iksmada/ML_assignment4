@@ -91,8 +91,8 @@ prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generat
 
 y_pred = np.argmax(prob, axis=1)
 y_true = np.array(test_classes)
-accuracy = (len(y_true) - np.count_nonzero(y_pred - y_true) + 0.0) / len(y_true)
-print("Accuracy on test set of %d samples: %f" % (len(y_true), accuracy))
+
+print("Accuracy on test set of %d samples: %f" % (len(y_true), accuracy_score(y_true, y_pred)))
 
 
 cmat = confusion_matrix(y_true, y_pred)
