@@ -35,7 +35,7 @@ def centered_crop(img, new_height=299, new_width=299):
     return c_img
 
 
-def resize(image, size=299, inter = cv2.INTER_AREA):
+def resize(image, size=299, inter=cv2.INTER_AREA):
     # initialize the dimensions of the image to be resized and
     # grab the image size
     dim = None
@@ -104,13 +104,16 @@ def f1(y_true, y_pred):
 
 start_time = time()
 parser = argparse.ArgumentParser(description='Dog breed classifier')
-parser.add_argument('-s', '--size', type=int, help='Train Size to use', default=-1)
-parser.add_argument('-n', '--num-classes', type=int, help='Number of classes to train with',
+parser.add_argument('-s', '--samples', type=int, help='Train Size to use',
+                    default=-1)
+parser.add_argument('-c', '--classes', type=int, help='Number of classes to train with',
                     default=83)
 parser.add_argument('-e', '--epochs', type=int, help='Number of epochs',
                     default=20)
-parser.add_argument('-d', '--dense', type=int, help='Number of dense layers',
+parser.add_argument('-dl', '--dense', type=int, help='Number of dense layers',
                     default=3)
+parser.add_argument('-do', '--drop', type=float, help='Percentage of drop-out',
+                    default=0.2)
 parser.add_argument('-a', '--augmentation', type=int, help='Images generated using augmentation per image',
                     default=1)
 parser.add_argument('-i', '--input-train', type=str, help='Path to files containing the train dataset',
@@ -122,13 +125,14 @@ parser.add_argument('-v', '--input-val', type=str, help='Path of files containin
 
 args = vars(parser.parse_args())
 print(args)
-SIZE = args["size"]
+SAMPLES = args["samples"]
 TRAIN = args["input_train"]
 TEST = args["input_test"]
 VAL = args["input_val"]
-NUM_CLASSES = args["num_classes"]
+CLASSES = args["classes"]
 EPOCHS = args["epochs"]
 DENSE = args["dense"]
+DROP = args["drop"]
 AUG = args["augmentation"]
 
 batch_size = 16
@@ -143,7 +147,7 @@ train_datagen = preprocessing.image.ImageDataGenerator(
 
 train_generator = train_datagen.flow_from_directory(
     TRAIN,  # this is the target directory
-    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
+    classes=["{:02d}".format(x) for x in range(CLASSES)],
     target_size=(299, 299),  # all images will be resized to 150x150
     batch_size=batch_size,
     shuffle=True,
@@ -156,14 +160,14 @@ val_datagen = preprocessing.image.ImageDataGenerator(
 
 validation_generator = val_datagen.flow_from_directory(
     VAL,
-    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
+    classes=["{:02d}".format(x) for x in range(CLASSES)],
     target_size=(299, 299),
     batch_size=batch_size,
     shuffle=True,
     class_mode='categorical'
 )
 
-model_name = "inceptionv3-" + str(DENSE) + "-" + str(NUM_CLASSES) + "-" + str(SIZE) + "-" + str(AUG)
+model_name = "inceptionv3-" + str(DENSE) + "-" + str(CLASSES) + "-" + str(SAMPLES) + "-" + str(AUG)
 try:
     model = models.load_model(model_name + ".h5", custom_objects={"f1": f1})
     print("Loaded: " + model_name)
@@ -176,18 +180,18 @@ except OSError:
     x = layers.GlobalAveragePooling2D()(x)
     if DENSE >= 3:
         x = layers.Dense(1024, activation='relu')(x)
-        x = layers.Dropout(0.2)(x)
+        x = layers.Dropout(DROP)(x)
     if DENSE >= 2:
         x = layers.Dense(512, activation='relu')(x)
-        x = layers.Dropout(0.2)(x)
-    predictions = layers.Dense(NUM_CLASSES, activation='softmax', name='my_dense')(x)
+        x = layers.Dropout(DROP)(x)
+    predictions = layers.Dense(CLASSES, activation='softmax', name='my_dense')(x)
     model = models.Model(inputs=base_model.input, outputs=predictions)
     # utils.vis_utils.plot_model(model, to_file="my_inceptionv3.png")
     model.compile(optimizer='rmsprop', loss="categorical_crossentropy", metrics=['accuracy', f1])
 earlyStopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=3, mode='auto')
-if SIZE > NUM_CLASSES:
-    train_size = SIZE
-    val_size = SIZE//2
+if SAMPLES > CLASSES:
+    train_size = SAMPLES
+    val_size = SAMPLES // 2
 else:
     train_size = len(train_generator.filenames)
     val_size = len(validation_generator.filenames)
@@ -238,7 +242,7 @@ test_datagen = preprocessing.image.ImageDataGenerator(
 
 test_generator = test_datagen.flow_from_directory(
     TEST,
-    classes=["{:02d}".format(x) for x in range(NUM_CLASSES)],
+    classes=["{:02d}".format(x) for x in range(CLASSES)],
     target_size=(299, 299),
     batch_size=1,
     shuffle=False,
@@ -248,7 +252,7 @@ test_generator = test_datagen.flow_from_directory(
 test_image_path = []
 test_classes = []
 for clazz in np.sort(listdir(TEST)):
-    if path.isdir(TEST + "/" + clazz) and int(clazz) < NUM_CLASSES:
+    if path.isdir(TEST + "/" + clazz) and int(clazz) < CLASSES:
         for filename in listdir(TEST + "/" + clazz):
             if filename.endswith(".jpg"):
                 test_image_path.append(TEST + "/" + clazz + '/' + filename)
