@@ -135,9 +135,8 @@ DENSE = args["dense"]
 DROP = args["drop"]
 AUG = args["augmentation"]
 
-batch_size = 16
+batch_size = 32
 train_datagen = preprocessing.image.ImageDataGenerator(
-    rescale=1./255,
     shear_range=0.2,
     # zoom_range=0.2,
     horizontal_flip=True,
