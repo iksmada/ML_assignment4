@@ -117,19 +117,19 @@ if i_pred == i_true[-1]:
 else:
     i_true = i_true[-1]
 
-yellow = (255, 255, 0)
+yellow = (0, 255, 255)
 font = cv2.FONT_HERSHEY_SIMPLEX
 img = cv2.imread(TEST + "/" + test_generator.filenames[i_pred])
-cv2.putText(img, 'True Class (%d): %.2f' % (y_true[i_pred], prob[i_pred][y_true[i_pred]]), (10, 30), font, 1,
+cv2.putText(img, 'True Class (%d): %.2f' % (y_true[i_pred], prob[i_pred][y_true[i_pred]]), (10, 30), font, 0.5,
             yellow, 2, cv2.LINE_AA)
-cv2.putText(img, 'Pred Class (%d): %.2f' % (y_pred[i_pred], prob[i_pred][y_pred[i_pred]]), (10, 70), font, 1,
+cv2.putText(img, 'Pred Class (%d): %.2f' % (y_pred[i_pred], prob[i_pred][y_pred[i_pred]]), (10, 70), font, 0.5,
             yellow, 2, cv2.LINE_AA)
 print("Worst Pred index: %d" % (i_pred))
 cv2.imshow("Worst Pred", img)
 img = cv2.imread(TEST + "/" + test_generator.filenames[i_true])
-cv2.putText(img, 'True Class (%d): %.2f' % (y_true[i_true], prob[i_true][y_true[i_true]]), (10, 30), font, 1,
+cv2.putText(img, 'True Class (%d): %.2f' % (y_true[i_true], prob[i_true][y_true[i_true]]), (10, 30), font, 0.5,
             yellow, 2, cv2.LINE_AA)
-cv2.putText(img, 'Pred Class (%d): %.2f' % (y_pred[i_true], prob[i_true][y_pred[i_true]]), (10, 70), font, 1,
+cv2.putText(img, 'Pred Class (%d): %.2f' % (y_pred[i_true], prob[i_true][y_pred[i_true]]), (10, 70), font, 0.5,
             yellow, 2, cv2.LINE_AA)
 print("Worst True index: %d" % (i_true))
 cv2.imshow("Worst True", img)
