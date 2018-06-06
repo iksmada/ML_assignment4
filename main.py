@@ -275,17 +275,21 @@ if __name__ == '__main__':
     max_pred = 0
     min_true = 1
     i_pred = 0
-    i_true = 0
+    i_true = [0]
     for i in wrong_eval:
         pred_prob = prob[i][y_pred[i]]
         true_prob = prob[i][y_true[i]]
         if pred_prob >= max_pred:
             max_pred = pred_prob
             i_pred = i
-            continue
         if true_prob <= min_true:
             min_true = true_prob
-            i_true = i
+            i_true.append(i)
+
+    if i_pred == i_true[-1]:
+        i_true = i_true[-2]
+    else:
+        i_true = i_true[-1]
 
     yellow = (255, 255, 0)
     font = cv2.FONT_HERSHEY_SIMPLEX

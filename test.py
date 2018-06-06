@@ -60,6 +60,7 @@ batch_size = 16
 
 test_datagen = preprocessing.image.ImageDataGenerator(
     rescale=1./255
+    #preprocessing_function=applications.inception_v3.preprocess_input
 )
 batch_size = 1
 test_generator = test_datagen.flow_from_directory(
@@ -71,16 +72,16 @@ test_generator = test_datagen.flow_from_directory(
     class_mode='categorical'
 )
 
-model_name = "inceptionv32-" + str(DENSE) + "-" + str(CLASSES) + "-" + str(SAMPLES) + "-" + str(AUG)
+model_name = "inceptionv3-3"# + str(DENSE) + "-" + str(CLASSES) + "-" + str(SAMPLES) + "-" + str(AUG)
 model = models.load_model(model_name + ".h5", custom_objects={"f1": f1})
 print("Loaded: " + model_name)
 
-score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_generator.filenames)//batch_size)
-print('Test loss:', score[0])
-print('Test accuracy:', score[1])
+#score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_generator.filenames)//batch_size)
+#print('Test loss:', score[0])
+#print('Test accuracy:', score[1])
 
 
-prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generator.filenames)//batch_size)
+prob = model.predict_generator(test_generator, verbose=1, steps=len(test_generator.filenames)//batch_size)
 
 y_pred = np.argmax(prob, axis=1)
 y_true = test_generator.classes
@@ -100,17 +101,21 @@ wrong_eval = np.where((y_pred - y_true) == 1)[0]
 max_pred = 0
 min_true = 1
 i_pred = 0
-i_true = 0
+i_true = [0]
 for i in wrong_eval:
     pred_prob = prob[i][y_pred[i]]
     true_prob = prob[i][y_true[i]]
     if pred_prob >= max_pred:
         max_pred = pred_prob
         i_pred = i
-        continue
     if true_prob <= min_true:
         min_true = true_prob
-        i_true = i
+        i_true.append(i)
+
+if i_pred == i_true[-1]:
+    i_true = i_true[-2]
+else:
+    i_true = i_true[-1]
 
 yellow = (255, 255, 0)
 font = cv2.FONT_HERSHEY_SIMPLEX
