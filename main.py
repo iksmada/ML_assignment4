@@ -9,7 +9,7 @@ from time import time
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 
 import tensorflow as tf
 from keras import applications, utils, layers, models, callbacks, preprocessing
@@ -248,15 +248,6 @@ if __name__ == '__main__':
         class_mode='categorical'
     )
 
-    test_image_path = []
-    test_classes = []
-    for clazz in np.sort(listdir(TEST)):
-        if path.isdir(TEST + "/" + clazz) and int(clazz) < CLASSES:
-            for filename in listdir(TEST + "/" + clazz):
-                if filename.endswith(".jpg"):
-                    test_image_path.append(TEST + "/" + clazz + '/' + filename)
-                    test_classes.append(int(clazz))
-
 
     score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_generator.filenames))
     print('Test loss:', score[0])
@@ -268,7 +259,7 @@ if __name__ == '__main__':
     prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generator.filenames))
 
     y_pred = np.argmax(prob, axis=1)
-    y_true = np.array(test_classes)
+    y_true = test_generator.classes
 
     print("Accuracy on test set of %d samples: %f" % (len(y_true), accuracy_score(y_true, y_pred)))
 
@@ -278,6 +269,6 @@ if __name__ == '__main__':
     print(cmat)
     acc_per_class = cmat.diagonal()/cmat.sum(axis=1)
     print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
-    print("F1 Score on test set: %f" % (f1(y_true, y_pred)))
+    print("F1 Score on test set: %f" % (f1_score(y_true, y_pred, average="macro")))
 
     print("--- %s seconds ---" % (time() - start_time))
