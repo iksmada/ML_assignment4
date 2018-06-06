@@ -54,14 +54,6 @@ DENSE = args["dense"]
 DROP = args["drop"]
 AUG = args["augmentation"]
 
-test_image_path = []
-test_classes = []
-for clazz in np.sort(listdir(TEST)):
-    if path.isdir(TEST + "/" + clazz) and int(clazz) < CLASSES:
-        for filename in listdir(TEST + "/" + clazz):
-            if filename.endswith(".jpg"):
-                test_image_path.append(TEST + "/" + clazz + '/' + filename)
-                test_classes.append(int(clazz))
 
 batch_size = 16
 
@@ -77,7 +69,6 @@ test_generator = test_datagen.flow_from_directory(
     shuffle=False,
     class_mode='categorical'
 )
-test_generator.num_classes = 83
 
 model_name = "inceptionv3-aug"
 model = models.load_model(model_name + ".h5")
@@ -87,12 +78,11 @@ score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_gener
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
-test_generator.class_mode = None
 
 prob = model.predict_generator(test_generator, verbose=2, steps=len(test_generator.filenames)//batch_size)
 
 y_pred = np.argmax(prob, axis=1)
-y_true = np.array(test_classes)
+y_true = test_generator.classes
 
 print("Accuracy on test set of %d samples: %f" % (len(y_true), accuracy_score(y_true, y_pred)))
 
