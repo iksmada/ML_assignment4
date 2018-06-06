@@ -7,7 +7,8 @@ import re
 from time import time
 
 import numpy as np
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
+import cv2
 
 from main import f1
 
@@ -70,8 +71,8 @@ test_generator = test_datagen.flow_from_directory(
     class_mode='categorical'
 )
 
-model_name = "inceptionv3-aug"
-model = models.load_model(model_name + ".h5")
+model_name = "inceptionv32-" + str(DENSE) + "-" + str(CLASSES) + "-" + str(SAMPLES) + "-" + str(AUG)
+model = models.load_model(model_name + ".h5", custom_objects={"f1": f1})
 print("Loaded: " + model_name)
 
 score = model.evaluate_generator(test_generator, verbose=2, steps=len(test_generator.filenames)//batch_size)
@@ -93,6 +94,40 @@ print(cmat)
 acc_per_class = cmat.diagonal()/cmat.sum(axis=1)
 np.set_printoptions(precision=4)
 print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
-print("F1 Score on test set: %f" % (f1(y_true, y_pred)))
+print("F1 Score on test set: %f" % (f1_score(y_true, y_pred, average="macro")))
+
+wrong_eval = np.where((y_pred - y_true) == 1)[0]
+max_pred = 0
+min_true = 1
+i_pred = 0
+i_true = 0
+for i in wrong_eval:
+    pred_prob = prob[i][y_pred[i]]
+    true_prob = prob[i][y_true[i]]
+    if pred_prob >= max_pred:
+        max_pred = pred_prob
+        i_pred = i
+        continue
+    if true_prob <= min_true:
+        min_true = true_prob
+        i_true = i
+
+yellow = (255, 255, 0)
+font = cv2.FONT_HERSHEY_SIMPLEX
+img = cv2.imread(TEST + "/" + test_generator.filenames[i_pred])
+cv2.putText(img, 'True Class (%d): %.2f' % (y_true[i_pred], prob[i_pred][y_true[i_pred]]), (10, 30), font, 1,
+            yellow, 2, cv2.LINE_AA)
+cv2.putText(img, 'Pred Class (%d): %.2f' % (y_pred[i_pred], prob[i_pred][y_pred[i_pred]]), (10, 70), font, 1,
+            yellow, 2, cv2.LINE_AA)
+print("Worst Pred index: %d" % (i_pred))
+cv2.imshow("Worst Pred", img)
+img = cv2.imread(TEST + "/" + test_generator.filenames[i_true])
+cv2.putText(img, 'True Class (%d): %.2f' % (y_true[i_true], prob[i_true][y_true[i_true]]), (10, 30), font, 1,
+            yellow, 2, cv2.LINE_AA)
+cv2.putText(img, 'Pred Class (%d): %.2f' % (y_pred[i_true], prob[i_true][y_pred[i_true]]), (10, 70), font, 1,
+            yellow, 2, cv2.LINE_AA)
+print("Worst True index: %d" % (i_true))
+cv2.imshow("Worst True", img)
+cv2.waitKey(0)
 
 print("--- %s seconds ---" % (time() - start_time))
