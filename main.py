@@ -271,7 +271,7 @@ if __name__ == '__main__':
     print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
     print("F1 Score on test set: %f" % (f1_score(y_true, y_pred, average="macro")))
 
-    wrong_eval = np.where((y_pred - y_true) == 1)[0]
+    wrong_eval = np.where((y_pred - y_true))[0]
     max_pred = 0
     min_true = 1
     i_pred = 0

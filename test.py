@@ -7,15 +7,16 @@ import re
 from time import time
 
 import numpy as np
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 import cv2
-
-from main import f1
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 
 import tensorflow as tf
 from keras import applications, utils, layers, models, callbacks, preprocessing
 import pydot
 import h5py
+
+from main import f1
+
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from joblib import Parallel, delayed
@@ -59,8 +60,7 @@ AUG = args["augmentation"]
 batch_size = 16
 
 test_datagen = preprocessing.image.ImageDataGenerator(
-    rescale=1./255
-    #preprocessing_function=applications.inception_v3.preprocess_input
+    preprocessing_function=applications.inception_v3.preprocess_input
 )
 batch_size = 1
 test_generator = test_datagen.flow_from_directory(
@@ -97,7 +97,7 @@ np.set_printoptions(precision=4)
 print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
 print("F1 Score on test set: %f" % (f1_score(y_true, y_pred, average="macro")))
 
-wrong_eval = np.where((y_pred - y_true) == 1)[0]
+wrong_eval = np.where((y_pred - y_true))[0]
 max_pred = 0
 min_true = 1
 i_pred = 0
