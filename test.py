@@ -9,6 +9,8 @@ from time import time
 import numpy as np
 from sklearn.metrics import confusion_matrix, accuracy_score
 
+from main import f1
+
 import tensorflow as tf
 from keras import applications, utils, layers, models, callbacks, preprocessing
 import pydot
@@ -94,12 +96,13 @@ y_true = np.array(test_classes)
 
 print("Accuracy on test set of %d samples: %f" % (len(y_true), accuracy_score(y_true, y_pred)))
 
-
 cmat = confusion_matrix(y_true, y_pred)
 cmat = cmat.astype('float') / cmat.sum(axis=1)[:, np.newaxis]
 np.set_printoptions(precision=2)
 print(cmat)
 acc_per_class = cmat.diagonal()/cmat.sum(axis=1)
+np.set_printoptions(precision=4)
 print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
+print("F1 Score on test set: %f" % (f1(y_true, y_pred)))
 
 print("--- %s seconds ---" % (time() - start_time))

@@ -277,5 +277,6 @@ np.set_printoptions(precision=2)
 print(cmat)
 acc_per_class = cmat.diagonal()/cmat.sum(axis=1)
 print("Normalized Accuracy on test set: %f" % (np.mean(acc_per_class)))
+print("F1 Score on test set: %f" % (f1(y_true, y_pred)))
 
 print("--- %s seconds ---" % (time() - start_time))
